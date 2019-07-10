@@ -2,7 +2,6 @@ package com.philips.research.regression.primitives;
 
 import com.philips.research.regression.util.VectorUtils;
 import dk.alexandra.fresco.lib.collections.Matrix;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Arrays;
@@ -37,7 +36,7 @@ public class LocalLogLikelihoodPrime {
     }
 
     static BigDecimal likelihood(List<BigDecimal> v1, List<BigDecimal> v2) {
-        BigDecimal product = VectorUtils.multiply(v1, v2);
+        BigDecimal product = VectorUtils.multiply(v1, v2);        
         BigDecimal exponential = new BigDecimal(Math.exp(product.negate().doubleValue()));
         BigDecimal plusOne = exponential.add(BigDecimal.ONE);
         return BigDecimal.ONE.divide(plusOne, 15, RoundingMode.HALF_UP);

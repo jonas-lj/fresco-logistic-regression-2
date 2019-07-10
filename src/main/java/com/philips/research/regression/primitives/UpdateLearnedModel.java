@@ -1,5 +1,9 @@
 package com.philips.research.regression.primitives;
 
+import static com.philips.research.regression.logging.TimestampedMarker.log;
+import static java.math.BigDecimal.valueOf;
+import static java.math.RoundingMode.HALF_UP;
+
 import com.philips.research.regression.logging.LoggingNoiseGenerator;
 import com.philips.research.regression.util.AddVectors;
 import dk.alexandra.fresco.framework.DRes;
@@ -7,13 +11,8 @@ import dk.alexandra.fresco.framework.builder.Computation;
 import dk.alexandra.fresco.framework.builder.numeric.ProtocolBuilderNumeric;
 import dk.alexandra.fresco.lib.collections.Matrix;
 import dk.alexandra.fresco.lib.real.SReal;
-
 import java.math.BigDecimal;
 import java.util.Vector;
-
-import static com.philips.research.regression.logging.TimestampedMarker.log;
-import static java.math.BigDecimal.valueOf;
-import static java.math.RoundingMode.HALF_UP;
 
 public class UpdateLearnedModel implements Computation<Vector<DRes<SReal>>, ProtocolBuilderNumeric> {
     private final DRes<Matrix<DRes<SReal>>> L;

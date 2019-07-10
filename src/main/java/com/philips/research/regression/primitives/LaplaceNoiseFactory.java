@@ -1,16 +1,15 @@
 package com.philips.research.regression.primitives;
 
+import static java.math.BigDecimal.valueOf;
+
 import dk.alexandra.fresco.framework.DRes;
 import dk.alexandra.fresco.framework.builder.Computation;
 import dk.alexandra.fresco.framework.builder.numeric.ProtocolBuilderNumeric;
 import dk.alexandra.fresco.lib.real.SReal;
-import dk.alexandra.fresco.propability.SampleLaplaceDistribution;
-
+import dk.alexandra.fresco.stat.sampling.SampleLaplaceDistribution;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Vector;
-
-import static java.math.BigDecimal.valueOf;
 
 class LaplaceNoiseGenerator implements Computation<Vector<DRes<SReal>>, ProtocolBuilderNumeric> {
 

@@ -1,23 +1,22 @@
 package com.philips.research.regression.primitives;
 
-import dk.alexandra.fresco.framework.Application;
-import dk.alexandra.fresco.framework.DRes;
-import dk.alexandra.fresco.framework.builder.numeric.ProtocolBuilderNumeric;
-import dk.alexandra.fresco.lib.real.RealLinearAlgebra;
-import dk.alexandra.fresco.lib.real.SReal;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
-import java.math.BigDecimal;
-import java.util.Collections;
-import java.util.Vector;
-
 import static com.philips.research.regression.Runner.run;
 import static java.math.BigDecimal.valueOf;
 import static java.math.RoundingMode.HALF_UP;
 import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import dk.alexandra.fresco.framework.Application;
+import dk.alexandra.fresco.framework.DRes;
+import dk.alexandra.fresco.framework.builder.numeric.ProtocolBuilderNumeric;
+import dk.alexandra.fresco.lib.real.RealLinearAlgebra;
+import dk.alexandra.fresco.lib.real.SReal;
+import java.math.BigDecimal;
+import java.util.Collections;
+import java.util.Vector;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 @DisplayName("Likelihood")
 class LikelihoodTest {
@@ -27,9 +26,9 @@ class LikelihoodTest {
     void likelihood() {
         Vector<BigDecimal> xi = new Vector<>(asList(valueOf(1.0), valueOf(2.0)));
         Vector<BigDecimal> beta = new Vector<>(asList(valueOf(0.1), valueOf(0.2)));
-        BigDecimal expected = new BigDecimal(0.6224593).setScale(4, HALF_UP);
+        BigDecimal expected = new BigDecimal(0.6224593).setScale(3, HALF_UP);
         BigDecimal probability = run(new LikelihoodApplication(xi, beta));
-        assertEquals(expected, probability.setScale(4, HALF_UP));
+        assertEquals(expected, probability.setScale(3, HALF_UP));
     }
 
     @Test

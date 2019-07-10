@@ -1,22 +1,17 @@
 package com.philips.research.regression.primitives;
 
+import static com.philips.research.regression.util.GenericArrayCreation.newArray;
+import static java.math.BigDecimal.ZERO;
+
 import com.philips.research.regression.util.GenericArrayCreation;
 import dk.alexandra.fresco.framework.DRes;
 import dk.alexandra.fresco.framework.builder.Computation;
 import dk.alexandra.fresco.framework.builder.ComputationParallel;
 import dk.alexandra.fresco.framework.builder.numeric.ProtocolBuilderNumeric;
-import dk.alexandra.fresco.framework.value.SInt;
 import dk.alexandra.fresco.lib.collections.Matrix;
 import dk.alexandra.fresco.lib.real.SReal;
-import dk.alexandra.fresco.lib.real.fixed.SFixed;
-
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
-
-import static com.philips.research.regression.util.GenericArrayCreation.newArray;
-import static java.math.BigDecimal.ZERO;
-import static java.math.BigInteger.valueOf;
 
 public class Cholesky implements Computation<Matrix<DRes<SReal>>, ProtocolBuilderNumeric> {
     private DRes<Matrix<DRes<SReal>>> input;
@@ -37,7 +32,6 @@ public class Cholesky implements Computation<Matrix<DRes<SReal>>, ProtocolBuilde
                 (seq, state) -> {
                     DRes<SReal>[][] a = state.a;
                     int j = state.j;
-                    DRes<SReal> one = seq.realNumeric().known(new BigDecimal(1));
                     int d = a.length;
                     for (int k = 0; k < j; k++) {
                         // TODO: parallelize
@@ -48,8 +42,8 @@ public class Cholesky implements Computation<Matrix<DRes<SReal>>, ProtocolBuilde
                             );
                         }
                     }
-                    a[j][j] = seq.seq(new RealNumericSqrt(a[j][j]));
-                    DRes<SReal> ajj_inverse = seq.realNumeric().div(one, a[j][j]);
+                    a[j][j] = seq.realAdvanced().sqrt(a[j][j]);
+                    DRes<SReal> ajj_inverse = seq.realAdvanced().reciprocal(a[j][j]);
                     DRes<DRes<SReal>[][]> newA = seq.par(new AjjInverseThing(a, j, ajj_inverse));
                     return () -> new IterationState(newA.out(), j + 1);
             }).seq((seq, state) -> {
@@ -112,26 +106,5 @@ public class Cholesky implements Computation<Matrix<DRes<SReal>>, ProtocolBuilde
             mat.add(new ArrayList<>(Arrays.asList(row)));
         }
         return new Matrix<>(h, w, mat);
-    }
-}
-
-class RealNumericSqrt implements Computation<SReal, ProtocolBuilderNumeric> {
-
-    private DRes<SReal> input;
-
-    RealNumericSqrt(DRes<SReal> input) {
-        this.input = input;
-    }
-
-    @Override
-    public DRes<SReal> buildComputation(ProtocolBuilderNumeric builder) {
-        return builder.seq(seq -> {
-            SFixed fixed = (SFixed) input.out();
-            DRes<SInt> underlyingInt = fixed.getSInt();
-            int precision = fixed.getPrecision();
-            DRes<SInt> scaled = seq.numeric().mult(valueOf(2).pow(precision), underlyingInt);
-            DRes<SInt> sqrt = seq.advancedNumeric().sqrt(scaled, seq.getBasicNumericContext().getMaxBitLength());
-            return new SFixed(sqrt, precision);
-        });
     }
 }
