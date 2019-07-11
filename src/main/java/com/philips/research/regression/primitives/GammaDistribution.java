@@ -37,7 +37,7 @@ class GammaDistribution {
                     // Select a dummy value for Z when the condition Z>-1/c is not met.
                     // Since we're allowed to open the condition, we could also introduce a nested while loop here that
                     // takes a random Z until the condition is met. We'll leave that as a future optimization.
-                    Z = seq.seq(new ConditionalSelect(r.leq(minZ, Z), Z, r.known(valueOf(0))));
+                    Z = seq.realAdvanced().condSelect(r.leq(minZ, Z), Z, r.known(valueOf(0)));
 
                     DRes<SReal> U = seq.seq(UniformDistribution.random());
                     DRes<SReal> quberootV = r.add(ONE, r.mult(valueOf(c), Z));

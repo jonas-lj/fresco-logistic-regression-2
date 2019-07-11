@@ -1,15 +1,14 @@
 package com.philips.research.regression.primitives;
 
+import static com.philips.research.regression.util.GenericArrayCreation.newArray;
+
 import dk.alexandra.fresco.framework.DRes;
 import dk.alexandra.fresco.framework.builder.Computation;
 import dk.alexandra.fresco.framework.builder.numeric.ProtocolBuilderNumeric;
 import dk.alexandra.fresco.lib.collections.Matrix;
 import dk.alexandra.fresco.lib.real.SReal;
-
 import java.util.Arrays;
 import java.util.Vector;
-
-import static com.philips.research.regression.util.GenericArrayCreation.newArray;
 
 class ForwardSubstitution implements Computation<Vector<DRes<SReal>>, ProtocolBuilderNumeric> {
     private final DRes<Matrix<DRes<SReal>>> matrix;
@@ -41,7 +40,8 @@ class ForwardSubstitution implements Computation<Vector<DRes<SReal>>, ProtocolBu
             for (int j = 0; j < i; ++j) {
                 y[i] = seq.realNumeric().sub(y[i], seq.realNumeric().mult(l.getRow(i).get(j), y[j]));
             }
-            y[i] = seq.realNumeric().div(y[i], l.getRow(i).get(i));
+            y[i] = seq.realNumeric().mult(y[i], seq.realAdvanced().reciprocal(l.getRow(i).get(i)));
+            //y[i] = seq.realNumeric().div(y[i], l.getRow(i).get(i));
         }
         return y;
     }

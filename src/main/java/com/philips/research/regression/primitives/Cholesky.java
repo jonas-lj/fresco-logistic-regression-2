@@ -44,6 +44,7 @@ public class Cholesky implements Computation<Matrix<DRes<SReal>>, ProtocolBuilde
                     }
                     a[j][j] = seq.realAdvanced().sqrt(a[j][j]);
                     DRes<SReal> ajj_inverse = seq.realAdvanced().reciprocal(a[j][j]);
+//                    DRes<SReal> ajj_inverse = seq.seq(new ReciprocalSquareRoot(a[j][j]));
                     DRes<DRes<SReal>[][]> newA = seq.par(new AjjInverseThing(a, j, ajj_inverse));
                     return () -> new IterationState(newA.out(), j + 1);
             }).seq((seq, state) -> {
