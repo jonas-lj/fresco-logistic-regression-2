@@ -238,24 +238,14 @@ class SpdzRunner <Output> extends ApplicationRunner<Output> {
             List<Integer> partyIds = new ArrayList<>(partyMap.keySet());
             Map<Integer, RotList> seedOts = getSeedOts(myId, partyIds, PRG_SEED_LENGTH, drbg, network);
             FieldElement ssk = SpdzMascotDataSupplier.createRandomSsk(definition, PRG_SEED_LENGTH);
-//            PreprocessedValuesSupplier preprocessedValuesSupplier
-//                = new PreprocessedValuesSupplier(myId, numberOfPlayers, networkFactory, protocolSuite, modBitLength, definition, seedOts, ssk, maxBitLength);
-            SpdzDataSupplier supplier = SpdzMascotDataSupplier.createSimpleSupplier(myId, numberOfPlayers, () -> network,
-                modBitLength, definition, new Function<Integer, SpdzSInt[]>() {
-
-                  private SpdzMascotDataSupplier tripleSupplier;
-
-                  @Override
-                  public SpdzSInt[] apply(Integer pipeLength) {
-                    if (tripleSupplier == null) {
-                      tripleSupplier = SpdzMascotDataSupplier.createSimpleSupplier(myId, numberOfPlayers,
-                          () -> network, modBitLength, definition, null, seedOts, drbg, ssk);
-                    }
-                    DRes<List<DRes<SInt>>> pipe = createPipe(pipeLength, network, tripleSupplier);
-                    return computeSInts(pipe);
-                  }
-                }, seedOts, drbg, ssk);
-
+            PreprocessedValuesSupplier preprocessedValuesSupplier
+                = new PreprocessedValuesSupplier(myId, numberOfPlayers, networkFactory, protocolSuite, modBitLength, definition, seedOts, ssk, maxBitLength);
+            SpdzDataSupplier supplier = SpdzMascotDataSupplier.createSimpleSupplier(
+                myId, numberOfPlayers,
+                () -> networkFactory.createExtraNetwork(myId),
+                modBitLength, definition,
+                preprocessedValuesSupplier::provide,
+                seedOts, drbg, ssk);
             resourcePool = new SpdzResourcePoolImpl(myId, numberOfPlayers, store, supplier, AesCtrDrbg::new);
         } else {
             SpdzDataSupplier supplier = new SpdzDummyDataSupplier(myId, partyMap.size(), definition,
@@ -264,39 +254,6 @@ class SpdzRunner <Output> extends ApplicationRunner<Output> {
         }
     }
 
-    private DRes<List<DRes<SInt>>> createPipe(int pipeLength, Network network,
-        SpdzMascotDataSupplier tripleSupplier) {
-
-      SpdzProtocolSuite spdzProtocolSuite = (SpdzProtocolSuite) this.protocolSuite;
-      SpdzResourcePool spdzResourcePool = (SpdzResourcePool) this.resourcePool;
-      ProtocolBuilderNumeric sequential = spdzProtocolSuite.init(spdzResourcePool).createSequential();
-
-      DRes<List<DRes<SInt>>> exponentiationPipe =
-          sequential.append(new SpdzExponentiationPipeProtocol(pipeLength));
-
-      evaluate(sequential, spdzResourcePool, network);
-      return exponentiationPipe;
-    }
-
-    private SpdzSInt[] computeSInts(DRes<List<DRes<SInt>>> pipe) {
-      List<DRes<SInt>> out = pipe.out();
-      SpdzSInt[] result = new SpdzSInt[out.size()];
-      for (int i = 0; i < out.size(); i++) {
-        DRes<SInt> sIntResult = out.get(i);
-        result[i] = (SpdzSInt) sIntResult.out();
-      }
-      return result;
-    }
-
-    private void evaluate(ProtocolBuilderNumeric spdzBuilder, SpdzResourcePool tripleResourcePool,
-        Network network) {
-      BatchedStrategy<SpdzResourcePool> batchedStrategy = new BatchedStrategy<>();
-      SpdzProtocolSuite spdzProtocolSuite = (SpdzProtocolSuite) this.protocolSuite;
-      BatchedProtocolEvaluator<SpdzResourcePool> batchedProtocolEvaluator =
-          new BatchedProtocolEvaluator<>(batchedStrategy, spdzProtocolSuite);
-      batchedProtocolEvaluator.eval(spdzBuilder.build(), tripleResourcePool, network);
-    }
-    
     private Map<Integer, RotList> getSeedOts(int myId, List<Integer> partyIds, int prgSeedLength,
                                              Drbg drbg, Network network) {
         // This method was copied from Fresco AbstractSpdzTest
