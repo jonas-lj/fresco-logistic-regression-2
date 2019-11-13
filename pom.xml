@@ -19,17 +19,17 @@
     <dependency>
       <groupId>dk.alexandra.fresco</groupId>
       <artifactId>core</artifactId>
-      <version>1.2.1-SNAPSHOT</version>
+      <version>1.2.2-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>dk.alexandra.fresco</groupId>
       <artifactId>spdz</artifactId>
-      <version>1.2.0</version>
+      <version>1.2.2-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>dk.alexandra.fresco</groupId>
       <artifactId>mascot</artifactId>
-      <version>1.2.0</version>
+      <version>1.2.2-SNAPSHOT</version>
     </dependency>
     <dependency>
 		<groupId>dk.alexandra.fresco</groupId>
@@ -67,7 +67,7 @@
       <scope>test</scope>
       <groupId>dk.alexandra.fresco</groupId>
       <artifactId>core</artifactId>
-      <version>1.2.0</version>
+      <version>1.2.2-SNAPSHOT</version>
       <type>test-jar</type>
     </dependency>
     <dependency>
