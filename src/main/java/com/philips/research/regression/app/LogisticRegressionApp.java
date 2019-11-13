@@ -4,6 +4,7 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import com.google.gson.Gson;
 import dk.alexandra.fresco.framework.Application;
+import dk.alexandra.fresco.framework.DRes;
 import dk.alexandra.fresco.framework.Party;
 import dk.alexandra.fresco.framework.ProtocolEvaluator;
 import dk.alexandra.fresco.framework.builder.numeric.ProtocolBuilderNumeric;
@@ -18,8 +19,10 @@ import dk.alexandra.fresco.framework.sce.SecureComputationEngine;
 import dk.alexandra.fresco.framework.sce.SecureComputationEngineImpl;
 import dk.alexandra.fresco.framework.sce.evaluator.BatchEvaluationStrategy;
 import dk.alexandra.fresco.framework.sce.evaluator.BatchedProtocolEvaluator;
+import dk.alexandra.fresco.framework.sce.evaluator.BatchedStrategy;
 import dk.alexandra.fresco.framework.sce.evaluator.EvaluationStrategy;
 import dk.alexandra.fresco.framework.util.*;
+import dk.alexandra.fresco.framework.value.SInt;
 import dk.alexandra.fresco.lib.collections.Matrix;
 import dk.alexandra.fresco.logging.BatchEvaluationLoggingDecorator;
 import dk.alexandra.fresco.logging.EvaluatorLoggingDecorator;
@@ -27,9 +30,11 @@ import dk.alexandra.fresco.logging.NetworkLoggingDecorator;
 import dk.alexandra.fresco.suite.dummy.arithmetic.DummyArithmeticProtocolSuite;
 import dk.alexandra.fresco.suite.dummy.arithmetic.DummyArithmeticResourcePool;
 import dk.alexandra.fresco.suite.dummy.arithmetic.DummyArithmeticResourcePoolImpl;
+import dk.alexandra.fresco.suite.spdz.SpdzExponentiationPipeProtocol;
 import dk.alexandra.fresco.suite.spdz.SpdzProtocolSuite;
 import dk.alexandra.fresco.suite.spdz.SpdzResourcePool;
 import dk.alexandra.fresco.suite.spdz.SpdzResourcePoolImpl;
+import dk.alexandra.fresco.suite.spdz.datatypes.SpdzSInt;
 import dk.alexandra.fresco.suite.spdz.storage.SpdzDataSupplier;
 import dk.alexandra.fresco.suite.spdz.storage.SpdzDummyDataSupplier;
 import dk.alexandra.fresco.suite.spdz.storage.SpdzMascotDataSupplier;
@@ -51,6 +56,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.philips.research.regression.util.MatrixConstruction.matrix;
@@ -212,12 +218,13 @@ class SpdzRunner <Output> extends ApplicationRunner<Output> {
 
     private SecureComputationEngineImpl<SpdzResourcePool, ProtocolBuilderNumeric> sce;
     private SpdzResourcePoolImpl resourcePool;
+    private SpdzProtocolSuite protocolSuite;
 
     SpdzRunner(int myId, Map<Integer, Party> partyMap, Boolean dummyDataSupplier, int modBitLength, int maxBitLength) {
         super(myId, partyMap, modBitLength);
         int numberOfPlayers = partyMap.size();
 
-        SpdzProtocolSuite protocolSuite = new SpdzProtocolSuite(maxBitLength, FIXED_POINT_PRECISION);
+        this.protocolSuite = new SpdzProtocolSuite(maxBitLength, FIXED_POINT_PRECISION);
         BatchEvaluationStrategy<SpdzResourcePool> strategy = EvaluationStrategy.SEQUENTIAL.getStrategy();
         strategy = new BatchEvaluationLoggingDecorator<>(strategy);
         ProtocolEvaluator<SpdzResourcePool> evaluator = new BatchedProtocolEvaluator<>(strategy, protocolSuite);
@@ -231,22 +238,65 @@ class SpdzRunner <Output> extends ApplicationRunner<Output> {
             List<Integer> partyIds = new ArrayList<>(partyMap.keySet());
             Map<Integer, RotList> seedOts = getSeedOts(myId, partyIds, PRG_SEED_LENGTH, drbg, network);
             FieldElement ssk = SpdzMascotDataSupplier.createRandomSsk(definition, PRG_SEED_LENGTH);
-            PreprocessedValuesSupplier preprocessedValuesSupplier
-                = new PreprocessedValuesSupplier(myId, numberOfPlayers, networkFactory, protocolSuite, modBitLength, definition, seedOts, ssk, maxBitLength);
-            SpdzDataSupplier supplier = SpdzMascotDataSupplier.createSimpleSupplier(
-                myId, numberOfPlayers,
-                () -> networkFactory.createExtraNetwork(myId),
-                modBitLength, definition,
-                preprocessedValuesSupplier::provide,
-                seedOts, drbg, ssk);
-            resourcePool = new SpdzResourcePoolImpl(myId, numberOfPlayers, store, supplier, Random.getDrbg(myId));
+//            PreprocessedValuesSupplier preprocessedValuesSupplier
+//                = new PreprocessedValuesSupplier(myId, numberOfPlayers, networkFactory, protocolSuite, modBitLength, definition, seedOts, ssk, maxBitLength);
+            SpdzDataSupplier supplier = SpdzMascotDataSupplier.createSimpleSupplier(myId, numberOfPlayers, () -> network,
+                modBitLength, definition, new Function<Integer, SpdzSInt[]>() {
+
+                  private SpdzMascotDataSupplier tripleSupplier;
+
+                  @Override
+                  public SpdzSInt[] apply(Integer pipeLength) {
+                    if (tripleSupplier == null) {
+                      tripleSupplier = SpdzMascotDataSupplier.createSimpleSupplier(myId, numberOfPlayers,
+                          () -> network, modBitLength, definition, null, seedOts, drbg, ssk);
+                    }
+                    DRes<List<DRes<SInt>>> pipe = createPipe(pipeLength, network, tripleSupplier);
+                    return computeSInts(pipe);
+                  }
+                }, seedOts, drbg, ssk);
+
+            resourcePool = new SpdzResourcePoolImpl(myId, numberOfPlayers, store, supplier, AesCtrDrbg::new);
         } else {
             SpdzDataSupplier supplier = new SpdzDummyDataSupplier(myId, partyMap.size(), definition,
                 new BigInteger(modulus.bitLength(), new java.util.Random(0)).mod(modulus));
-            resourcePool = new SpdzResourcePoolImpl(myId, partyMap.size(), store, supplier, new AesCtrDrbg());
+            resourcePool = new SpdzResourcePoolImpl(myId, partyMap.size(), store, supplier, AesCtrDrbg::new);
         }
     }
 
+    private DRes<List<DRes<SInt>>> createPipe(int pipeLength, Network network,
+        SpdzMascotDataSupplier tripleSupplier) {
+
+      SpdzProtocolSuite spdzProtocolSuite = (SpdzProtocolSuite) this.protocolSuite;
+      SpdzResourcePool spdzResourcePool = (SpdzResourcePool) this.resourcePool;
+      ProtocolBuilderNumeric sequential = spdzProtocolSuite.init(spdzResourcePool).createSequential();
+
+      DRes<List<DRes<SInt>>> exponentiationPipe =
+          sequential.append(new SpdzExponentiationPipeProtocol(pipeLength));
+
+      evaluate(sequential, spdzResourcePool, network);
+      return exponentiationPipe;
+    }
+
+    private SpdzSInt[] computeSInts(DRes<List<DRes<SInt>>> pipe) {
+      List<DRes<SInt>> out = pipe.out();
+      SpdzSInt[] result = new SpdzSInt[out.size()];
+      for (int i = 0; i < out.size(); i++) {
+        DRes<SInt> sIntResult = out.get(i);
+        result[i] = (SpdzSInt) sIntResult.out();
+      }
+      return result;
+    }
+
+    private void evaluate(ProtocolBuilderNumeric spdzBuilder, SpdzResourcePool tripleResourcePool,
+        Network network) {
+      BatchedStrategy<SpdzResourcePool> batchedStrategy = new BatchedStrategy<>();
+      SpdzProtocolSuite spdzProtocolSuite = (SpdzProtocolSuite) this.protocolSuite;
+      BatchedProtocolEvaluator<SpdzResourcePool> batchedProtocolEvaluator =
+          new BatchedProtocolEvaluator<>(batchedStrategy, spdzProtocolSuite);
+      batchedProtocolEvaluator.eval(spdzBuilder.build(), tripleResourcePool, network);
+    }
+    
     private Map<Integer, RotList> getSeedOts(int myId, List<Integer> partyIds, int prgSeedLength,
                                              Drbg drbg, Network network) {
         // This method was copied from Fresco AbstractSpdzTest

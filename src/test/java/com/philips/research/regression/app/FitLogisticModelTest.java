@@ -27,14 +27,14 @@ import static java.util.Arrays.fill;
 class FitLogisticModelTest {
 
     private static BigDecimal intercept = valueOf(1.65707);
-    private static BigDecimal beta_hp = valueOf(0.00968555);
-    private static BigDecimal beta_wt = valueOf(-1.17481);
+    private static BigDecimal beta_hp = valueOf(0.00968555 / hp_scale);
+    private static BigDecimal beta_wt = valueOf(-1.17481 / wt_scale);
 
     @Test
     @DisplayName("performs logistic regression")
     void fitsLogisticModel() {
         List<BigDecimal> beta = run(new FitLogisticModelApplication(Xs, Ys, 1.0, 5, null), 2);
-        assertEquals(asList(beta_hp, beta_wt, intercept), beta, 0.001);
+        assertEquals(asList(beta_hp, beta_wt, intercept), beta, 0.01);
     }
 
     @Test

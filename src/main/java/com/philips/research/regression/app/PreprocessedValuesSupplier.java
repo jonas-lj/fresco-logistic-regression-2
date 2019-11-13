@@ -10,6 +10,7 @@ import dk.alexandra.fresco.framework.network.CloseableNetwork;
 import dk.alexandra.fresco.framework.network.Network;
 import dk.alexandra.fresco.framework.sce.evaluator.BatchedProtocolEvaluator;
 import dk.alexandra.fresco.framework.sce.evaluator.BatchedStrategy;
+import dk.alexandra.fresco.framework.util.AesCtrDrbg;
 import dk.alexandra.fresco.framework.util.Drbg;
 import dk.alexandra.fresco.framework.util.OpenedValueStoreImpl;
 import dk.alexandra.fresco.framework.value.SInt;
@@ -69,7 +70,7 @@ class PreprocessedValuesSupplier {
             numberOfPlayers,
             new OpenedValueStoreImpl<>(),
             tripleSupplier,
-            drbg);
+            AesCtrDrbg::new);
     }
 
     private void evaluate(ProtocolBuilderNumeric spdzBuilder, SpdzResourcePool tripleResourcePool,

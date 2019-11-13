@@ -53,7 +53,7 @@ class GammaDistributionTests {
     @Test
     @DisplayName("has correct mean")
     void mean() {
-        assertEquals(MEAN,  stats.getAverage(), 0.2);
+        assertEquals(MEAN,  stats.getAverage(), 0.25);
     }
 }
 
