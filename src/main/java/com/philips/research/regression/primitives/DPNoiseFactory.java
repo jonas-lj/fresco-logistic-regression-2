@@ -7,6 +7,7 @@ import com.philips.research.regression.util.AddVectors;
 import dk.alexandra.fresco.framework.DRes;
 import dk.alexandra.fresco.framework.builder.Computation;
 import dk.alexandra.fresco.framework.builder.numeric.ProtocolBuilderNumeric;
+import dk.alexandra.fresco.framework.util.Pair;
 import dk.alexandra.fresco.lib.debug.FixedOpenAndPrint;
 import dk.alexandra.fresco.lib.real.RealNumeric;
 import dk.alexandra.fresco.lib.real.SReal;
@@ -91,7 +92,6 @@ class DPNoiseGenerator implements Computation<Vector<DRes<SReal>>, ProtocolBuild
 
     @Override
     public DRes<Vector<DRes<SReal>>> buildComputation(ProtocolBuilderNumeric builder) {
-        RealNumeric r = builder.realNumeric();
         double scale = 2.0 / (numberOfInputs * epsilon.doubleValue() * lambda.doubleValue());
 
         log(builder, "Generating noise with epsilon " + epsilon
@@ -99,29 +99,31 @@ class DPNoiseGenerator implements Computation<Vector<DRes<SReal>>, ProtocolBuild
             + ", shape " + numVars
             + ", scale " + scale);
 
-        DRes<SReal> noiseLen = builder.seq(GammaDistribution.random(numVars, scale));
+        return builder.par(par -> {
+            DRes<SReal> noiseLen = GammaDistribution.random(numVars, scale).buildComputation(par);
 
-        Vector<DRes<SReal>> noise = new Vector<>();
-        DRes<SReal> sumOfSquares = r.known(valueOf(0));
-        for (int i = 0; i < numVars; ++i) {
-            DRes<SReal> rand = builder.seq(NormalDistribution.random());
+            Vector<DRes<SReal>> noise = new Vector<>();
+            for (int i = 0; i < numVars; ++i) {
+                noise.add(NormalDistribution.random().buildComputation(par));
+            }
+            return Pair.lazy(noiseLen, noise);
 
-            noise.add(rand);
-            DRes<SReal> square = r.mult(rand, rand);
-            sumOfSquares = r.add(sumOfSquares, square);
-        }
+        }).seq((seq, noise) -> {
 
-        DRes<SReal> norm = builder.realAdvanced().sqrt(sumOfSquares);
+            DRes<SReal> sumOfSquares = seq.realAdvanced().innerProduct(noise.getSecond(), noise.getSecond());
+            DRes<SReal> norm = seq.realAdvanced().sqrt(sumOfSquares);
+            DRes<SReal> normInverse = seq.realAdvanced().reciprocal(norm);
+            DRes<SReal> noiseLenDividedByNorm = seq.realNumeric().mult(noise.getFirst(), normInverse);
 
-        DRes<SReal> normInverse = builder.realAdvanced().reciprocal(norm);
+            return Pair.lazy(noise.getSecond(), noiseLenDividedByNorm);
+        }).par((par, noise) -> {
 
-        DRes<SReal> noiseLenDividedByNorm = r.mult(noiseLen, normInverse);
+            for (int i = 0; i < numVars; ++i) {
+                DRes<SReal> scaled = par.realNumeric().mult(noise.getFirst().get(i), noise.getSecond());
+                noise.getFirst().set(i, scaled);
+            }
 
-        for (int i = 0; i < numVars; ++i) {
-            DRes<SReal> scaled = r.mult(noise.get(i), noiseLenDividedByNorm);
-            noise.set(i, scaled);
-        }
-
-        return () -> noise;
+            return () -> noise.getFirst();
+        });
     }
 }
