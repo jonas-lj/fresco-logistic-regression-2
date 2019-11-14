@@ -11,6 +11,9 @@ import dk.alexandra.fresco.framework.util.Pair;
 import dk.alexandra.fresco.lib.debug.FixedOpenAndPrint;
 import dk.alexandra.fresco.lib.real.RealNumeric;
 import dk.alexandra.fresco.lib.real.SReal;
+import dk.alexandra.fresco.stat.sampling.SampleGammaDistribution;
+import dk.alexandra.fresco.stat.sampling.SampleNormalDistribution;
+
 import java.math.BigDecimal;
 import java.util.Vector;
 
@@ -100,11 +103,11 @@ class DPNoiseGenerator implements Computation<Vector<DRes<SReal>>, ProtocolBuild
             + ", scale " + scale);
 
         return builder.par(par -> {
-            DRes<SReal> noiseLen = GammaDistribution.random(numVars, scale).buildComputation(par);
+            DRes<SReal> noiseLen = new SampleGammaDistribution(numVars, scale).buildComputation(par);
 
             Vector<DRes<SReal>> noise = new Vector<>();
             for (int i = 0; i < numVars; ++i) {
-                noise.add(NormalDistribution.random().buildComputation(par));
+                noise.add(new SampleNormalDistribution().buildComputation(par));
             }
             return Pair.lazy(noiseLen, noise);
 
