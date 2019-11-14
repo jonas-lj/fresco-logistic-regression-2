@@ -27,7 +27,7 @@ import java.util.Map;
 import static com.philips.research.regression.util.ListConversions.unwrap;
 
 class PreprocessedValuesSupplier {
-    private final CloseableNetwork pipeNetwork;
+    private final Network pipeNetwork;
     private final SpdzMascotDataSupplier tripleSupplier;
     private final int maxBitLength;
     private final SpdzProtocolSuite protocolSuite;
@@ -35,8 +35,8 @@ class PreprocessedValuesSupplier {
     private final int numberOfPlayers;
     private final Drbg drbg;
 
-    PreprocessedValuesSupplier(int myId, int numberOfPlayers, NetworkFactory networkFactory, SpdzProtocolSuite protocolSuite, int modBitLength, FieldDefinition definition, Map<Integer, RotList> seedOts, FieldElement ssk, int maxBitLength) {
-        this.pipeNetwork = networkFactory.createExtraNetwork(myId);
+    PreprocessedValuesSupplier(int myId, int numberOfPlayers, Network network, SpdzProtocolSuite protocolSuite, int modBitLength, FieldDefinition definition, Map<Integer, RotList> seedOts, FieldElement ssk, int maxBitLength) {
+        this.pipeNetwork = network;
         this.tripleSupplier = SpdzMascotDataSupplier.createSimpleSupplier(
             myId,
             numberOfPlayers,

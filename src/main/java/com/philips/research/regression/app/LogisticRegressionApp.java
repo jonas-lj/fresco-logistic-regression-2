@@ -192,21 +192,18 @@ public class LogisticRegressionApp implements Callable<Void> {
 }
 
 abstract class ApplicationRunner <Output> {
-    NetworkFactory networkFactory;
     Network network;
     BigInteger modulus;
 
     ApplicationRunner(int myId, Map<Integer, Party> partyMap, int modBitLength) {
         network = new SocketNetwork(new NetworkConfigurationImpl(myId, partyMap));
         network = new NetworkLoggingDecorator(network);
-        networkFactory = new NetworkFactory(partyMap);
         modulus = ModulusFinder.findSuitableModulus(modBitLength);
     }
 
     abstract Output run(Application<Output, ProtocolBuilderNumeric> application);
 
     void close() throws IOException {
-        networkFactory.close();
         ((Closeable)network).close();
     }
 }
@@ -214,7 +211,6 @@ abstract class ApplicationRunner <Output> {
 class SpdzRunner <Output> extends ApplicationRunner<Output> {
 
     static final int PRG_SEED_LENGTH = 256;
-    private static final int FIXED_POINT_PRECISION = 16;
 
     private SecureComputationEngineImpl<SpdzResourcePool, ProtocolBuilderNumeric> sce;
     private SpdzResourcePoolImpl resourcePool;
@@ -224,7 +220,7 @@ class SpdzRunner <Output> extends ApplicationRunner<Output> {
         super(myId, partyMap, modBitLength);
         int numberOfPlayers = partyMap.size();
 
-        this.protocolSuite = new SpdzProtocolSuite(maxBitLength, FIXED_POINT_PRECISION);
+        this.protocolSuite = new SpdzProtocolSuite(maxBitLength, 16);
         BatchEvaluationStrategy<SpdzResourcePool> strategy = EvaluationStrategy.SEQUENTIAL.getStrategy();
         strategy = new BatchEvaluationLoggingDecorator<>(strategy);
         ProtocolEvaluator<SpdzResourcePool> evaluator = new BatchedProtocolEvaluator<>(strategy, protocolSuite);
@@ -239,10 +235,10 @@ class SpdzRunner <Output> extends ApplicationRunner<Output> {
             Map<Integer, RotList> seedOts = getSeedOts(myId, partyIds, PRG_SEED_LENGTH, drbg, network);
             FieldElement ssk = SpdzMascotDataSupplier.createRandomSsk(definition, PRG_SEED_LENGTH);
             PreprocessedValuesSupplier preprocessedValuesSupplier
-                = new PreprocessedValuesSupplier(myId, numberOfPlayers, networkFactory, protocolSuite, modBitLength, definition, seedOts, ssk, maxBitLength);
+                = new PreprocessedValuesSupplier(myId, numberOfPlayers, network, protocolSuite, modBitLength, definition, seedOts, ssk, maxBitLength);
             SpdzDataSupplier supplier = SpdzMascotDataSupplier.createSimpleSupplier(
                 myId, numberOfPlayers,
-                () -> networkFactory.createExtraNetwork(myId),
+                () -> network,
                 modBitLength, definition,
                 preprocessedValuesSupplier::provide,
                 seedOts, drbg, ssk);
@@ -315,45 +311,5 @@ class DummyRunner <Output> extends ApplicationRunner<Output> {
     public void close() throws IOException {
         super.close();
         sce.shutdownSCE();
-    }
-}
- class NetworkFactory implements Closeable {
-
-    private static final AtomicInteger PORT_OFFSET_COUNTER = new AtomicInteger(50);
-    private static final int PORT_INCREMENT = 10;
-    private final List<Closeable> openedNetworks;
-     private final Map<Integer, Party> parties;
-
-     public NetworkFactory(Map<Integer, Party> parties) {
-        this.parties = parties;
-        this.openedNetworks = new ArrayList<>();
-    }
-
-    public CloseableNetwork createExtraNetwork(int myId) {
-        int portOffset = PORT_OFFSET_COUNTER.addAndGet(PORT_INCREMENT);
-        Map<Integer, Party> partiesWithPortOffset = parties.entrySet()
-            .stream()
-            .peek(e -> e.setValue(applyOffset(portOffset, e.getValue())))
-            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        NetworkConfiguration config = new NetworkConfigurationImpl(myId, parties);
-        CloseableNetwork net = new SocketNetwork(config);
-        openedNetworks.add(net);
-        return net;
-    }
-
-     private Party applyOffset(int portOffset, Party party) {
-         return new Party(party.getPartyId(), party.getHostname(), party.getPort() + portOffset);
-     }
-
-     @Override
-    public void close() {
-        openedNetworks.forEach(this::close);
-    }
-
-    private void close(Closeable closeable) {
-        ExceptionConverter.safe(() -> {
-            closeable.close();
-            return null;
-        }, "IO Exception");
     }
 }
