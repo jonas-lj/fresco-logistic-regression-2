@@ -7,6 +7,7 @@ import com.philips.research.regression.util.AddVectors;
 import dk.alexandra.fresco.framework.DRes;
 import dk.alexandra.fresco.framework.builder.Computation;
 import dk.alexandra.fresco.framework.builder.numeric.ProtocolBuilderNumeric;
+import dk.alexandra.fresco.lib.debug.FixedOpenAndPrint;
 import dk.alexandra.fresco.lib.real.RealNumeric;
 import dk.alexandra.fresco.lib.real.SReal;
 import java.math.BigDecimal;
@@ -104,13 +105,18 @@ class DPNoiseGenerator implements Computation<Vector<DRes<SReal>>, ProtocolBuild
         DRes<SReal> sumOfSquares = r.known(valueOf(0));
         for (int i = 0; i < numVars; ++i) {
             DRes<SReal> rand = builder.seq(NormalDistribution.random());
+
             noise.add(rand);
             DRes<SReal> square = r.mult(rand, rand);
             sumOfSquares = r.add(sumOfSquares, square);
         }
 
         DRes<SReal> norm = builder.realAdvanced().sqrt(sumOfSquares);
-        DRes<SReal> noiseLenDividedByNorm = r.div(noiseLen, norm);
+
+        DRes<SReal> normInverse = builder.realAdvanced().reciprocal(norm);
+
+        DRes<SReal> noiseLenDividedByNorm = r.mult(noiseLen, normInverse);
+
         for (int i = 0; i < numVars; ++i) {
             DRes<SReal> scaled = r.mult(noise.get(i), noiseLenDividedByNorm);
             noise.set(i, scaled);
